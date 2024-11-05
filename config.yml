@@ -1,0 +1,16 @@
+logging:
+  level: INFO
+  loggers:
+    com.spotler: DEBUG
+server:
+  applicationConnectors:
+    - type: http
+      port: 9026
+  adminConnectors:
+    - type: http
+      port: 9027
+accountManagementUrl: https://sso.spotler.test/
+dataLake:
+  sftpHost: ftp.spotler.co.uk
+  sftpUsername: productdatasftp
+  sftpPassword: changeMe
