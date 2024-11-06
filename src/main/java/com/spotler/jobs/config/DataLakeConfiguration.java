@@ -4,6 +4,7 @@ public class DataLakeConfiguration {
     private String sftpHost;
     private String sftpUsername;
     private String sftpPassword;
+    private Integer maxRetries;
 
     public String getSftpHost() {
         return sftpHost;
@@ -27,5 +28,13 @@ public class DataLakeConfiguration {
 
     public void setSftpPassword(String sftpPassword) {
         this.sftpPassword = sftpPassword;
+    }
+
+    public Integer getMaxRetries() {
+        return maxRetries;
+    }
+
+    public void setMaxRetries(Integer maxRetries) {
+        this.maxRetries = maxRetries;
     }
 }

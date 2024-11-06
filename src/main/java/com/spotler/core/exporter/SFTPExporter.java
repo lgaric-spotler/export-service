@@ -4,29 +4,32 @@ import com.google.inject.Inject;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
-import com.spotler.ExportServiceConfiguration;
-import com.spotler.jobs.config.DataLakeConfiguration;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Properties;
 
 public class SFTPExporter {
 
-    private final DataLakeConfiguration config;
+    private final String host;
+    private final String username;
+    private final String password;
 
     @Inject
-    public SFTPExporter(ExportServiceConfiguration exportServiceConfiguration) {
-        this.config = exportServiceConfiguration.getDataLake();
+    public SFTPExporter(String host, String username, String password) {
+        this.host = host;
+        this.username = username;
+        this.password = password;
     }
 
-    public void uploadFile(InputStream data, String remoteFilePath) throws Exception {
+    public void uploadFile(String data, String remoteFilePath) throws Exception {
         JSch jsch = new JSch();
         Session session = null;
         ChannelSftp channelSftp = null;
 
-        try {
-            session = jsch.getSession(config.getSftpUsername(), config.getSftpHost(), 22);
-            session.setPassword(config.getSftpPassword());
+        try (InputStream inputStreamData = new ByteArrayInputStream(data.getBytes())) {
+            session = jsch.getSession(this.username, this.host, 22);
+            session.setPassword(this.password);
 
             Properties config = new Properties();
             config.put("StrictHostKeyChecking", "no");
@@ -36,7 +39,7 @@ public class SFTPExporter {
             channelSftp = (ChannelSftp) session.openChannel("sftp");
             channelSftp.connect();
 
-            channelSftp.put(data, remoteFilePath);
+            channelSftp.put(inputStreamData, remoteFilePath);
         } finally {
             if (channelSftp != null) {
                 channelSftp.disconnect();
@@ -44,7 +47,6 @@ public class SFTPExporter {
             if (session != null) {
                 session.disconnect();
             }
-            data.close();
         }
     }
 }

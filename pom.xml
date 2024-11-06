@@ -56,6 +56,11 @@
                 <artifactId>jsch</artifactId>
                 <version>0.1.55</version>
             </dependency>
+            <dependency>
+                <groupId>net.sf.opencsv</groupId>
+                <artifactId>opencsv</artifactId>
+                <version>2.3</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.spotler</groupId>
@@ -134,6 +139,10 @@
         <dependency>
             <groupId>com.jcraft</groupId>
             <artifactId>jsch</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
         </dependency>
 
         <dependency>

@@ -1,76 +1,86 @@
 package com.spotler.jobs;
 
 import com.google.inject.Inject;
-import com.spotler.core.apiclients.AMSClient;
-import com.spotler.core.business.service.AccountServiceFactory;
+import com.spotler.ExportServiceConfiguration;
+import com.spotler.core.business.service.DataLakeService;
 import com.spotler.core.exporter.SFTPExporter;
-import com.spotler.core.model.account.Account;
-import com.spotler.core.model.account.DurationType;
-import com.spotler.model.search.Filter;
-import com.spotler.model.search.ListParams;
-import com.spotler.service.SpotlerAccountService;
+import com.spotler.model.datalake.Environment;
+import com.spotler.model.datalake.User;
+import com.spotler.util.CSVWriterUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
+import javax.inject.Named;
+import java.io.Writer;
+import java.time.LocalDate;
 import java.util.List;
 
 public class DataLakeExportJob extends Job {
     private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
 
-    private final AMSClient amsClient;
     private final SFTPExporter sftpExporter;
+    private final DataLakeService dataLakeService;
+    private final int maxRetries;
 
     @Inject
-    public DataLakeExportJob(AMSClient amsClient, SFTPExporter sftpExporter) {
-        this.amsClient = amsClient;
+    public DataLakeExportJob(@Named("dataLake") SFTPExporter sftpExporter, ExportServiceConfiguration exportServiceConfiguration, DataLakeService dataLakeService) {
         this.sftpExporter = sftpExporter;
+        this.dataLakeService = dataLakeService;
+
+        Integer maxRetriesConfig = exportServiceConfiguration.getDataLake().getMaxRetries();
+        this.maxRetries = maxRetriesConfig == null ? 0 : maxRetriesConfig;
     }
 
 
     @Override
     protected void doRun() {
         LOGGER.info("DataLakeExport START!");
+        int attempt = 1;
 
         boolean upload = false;
         if (upload) {
-            exportEnvironmentData();
+            try {
+                exportData();
+            } catch (Exception ex) {
+                if (attempt <= maxRetries) {
+                    LOGGER.error("Error occurred when exporting data to DataLake on attempt {}/{}! Retrying...", attempt, maxRetries, ex);
+                    exportData();
+                } else {
+                    LOGGER.error("Error occurred when exporting data to DataLake on attempt {}/{}! Stopping...", attempt, maxRetries, ex);
+                }
+            }
         }
 
         LOGGER.info("DataLakeExport END!");
     }
 
+    private void exportData() {
+        exportEnvironmentData();
+        exportUserData();
+        exportUsageData();
+    }
+
     private void exportEnvironmentData() {
-        List<Account> accounts = amsClient.getAllAccounts();
+        List<Environment> environmentData = dataLakeService.getEnvironmentData();
 
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             Writer writer = new OutputStreamWriter(baos, StandardCharsets.UTF_8)) {
-            writer.write("AccountID,AccountName,ProductType,CreationDate,LastLoginDate,ExpiryDate,TestAccount,SSOLicense,B2BLicense,IntegrationLicense\n");
-
-            // Write account data
-            for (Account account : accounts) {
-                writer.write(String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
-                        account.getId(),
-                        account.getName(),
-                        account.getProductType(),
-                        account.getCreatedAt(),
-                        account.getLastLoginAt(),
-                        account.getExpiresAt(),
-                        "N", // test account?
-                        "N", // SSO license
-                        "N", // B2B license
-                        "N" // Integration license
-                        ));
-            }
-            writer.flush();
-
-            try (InputStream inputStream = new ByteArrayInputStream(baos.toByteArray())) {
-                sftpExporter.uploadFile(inputStream, "/ftp/mailplus/environment.csv");
-            }
+        try (Writer environmentDataWriter = CSVWriterUtil.write(environmentData)) {
+            sftpExporter.uploadFile(environmentDataWriter.toString(), String.format("/ftp/mailplus/MailPlus_Environment_%s.csv", LocalDate.now()));
         } catch (Exception e) {
-            LOGGER.error("Error exporting environment data", e);
+            throw new RuntimeException(e);
         }
+    }
+
+    private void exportUserData() {
+        List<User> userData = dataLakeService.getUserData();
+
+        try (Writer environmentDataWriter = CSVWriterUtil.write(userData)) {
+            sftpExporter.uploadFile(environmentDataWriter.toString(), String.format("/ftp/mailplus/MailPlus_User_%s.csv", LocalDate.now()));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void exportUsageData() {
+
     }
 }

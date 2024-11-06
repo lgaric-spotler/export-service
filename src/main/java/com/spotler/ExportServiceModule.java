@@ -8,11 +8,13 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
+import com.spotler.core.exporter.SFTPExporter;
 import com.spotler.service.SessionService;
 import com.spotler.service.impl.SessionServiceImpl;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 
+import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.ws.rs.client.ClientBuilder;
 
@@ -45,5 +47,11 @@ public class ExportServiceModule extends AbstractModule {
     @Provides
     public SessionService sessionService(final ExportServiceConfiguration configuration, ClientBuilder clientBuilder) {
         return new SessionServiceImpl(clientBuilder, configuration.getAccountManagementUrl().toString());
+    }
+
+    @Provides
+    @Named("dataLake")
+    public SFTPExporter sftpExporter(final ExportServiceConfiguration configuration) {
+        return new SFTPExporter(configuration.getDataLake().getSftpHost(), configuration.getDataLake().getSftpUsername(), configuration.getDataLake().getSftpPassword());
     }
 }

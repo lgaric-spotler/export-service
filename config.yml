@@ -14,3 +14,4 @@ dataLake:
   sftpHost: ftp.spotler.co.uk
   sftpUsername: productdatasftp
   sftpPassword: changeMe
+  maxRetries: 3
