@@ -15,6 +15,8 @@ public class ExportManager {
     private final Injector injector;
     private final Environment environment;
 
+    private DataLakeExportJob dataLakeExportJob;
+
     @Inject
     public ExportManager(Injector injector, Environment environment) {
         this.injector = injector;
@@ -26,7 +28,13 @@ public class ExportManager {
     }
 
     public void runDataLakeExport(boolean runNow) {
-        DataLakeExportJob dataLakeExportJob = injector.getInstance(DataLakeExportJob.class);
+        if (dataLakeExportJob == null) {
+            dataLakeExportJob = injector.getInstance(DataLakeExportJob.class);
+        }
+
+        if (isDataLakeExportRunning()) {
+            return;
+        }
 
         if (runNow) {
             environment.lifecycle()
@@ -43,5 +51,12 @@ public class ExportManager {
                     .build()
                     .scheduleAtFixedRate(dataLakeExportJob, delay, 1, TimeUnit.DAYS);
         }
+    }
+
+    public boolean isDataLakeExportRunning() {
+        if (dataLakeExportJob == null) {
+            dataLakeExportJob = injector.getInstance(DataLakeExportJob.class);
+        }
+        return dataLakeExportJob.isRunning();
     }
 }

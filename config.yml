@@ -14,4 +14,8 @@ dataLake:
   sftpHost: ftp.spotler.co.uk
   sftpUsername: productdatasftp
   sftpPassword: changeMe
-  maxRetries: 3
+  maxRetries: 1
+mailPlus:
+  consumerKey: hkljiyuhljklkyug237y9gkjl2
+  consumerSecret: 435hjkgef790543bjklefrwg97u
+  timeout: 60000

@@ -24,7 +24,11 @@ public class AdminResource {
 
     @GET
     @Path("/export-data-lake")
-    public String exportDataLake() {
+    public String startDataLakeExport() {
+        if (exportManager.isDataLakeExportRunning()) {
+            return "ALREADY_RUNNING";
+        }
+
         exportManager.runDataLakeExport(true);
         return "OK";
     }

@@ -13,15 +13,35 @@ import com.spotler.service.SessionService;
 import com.spotler.service.impl.SessionServiceImpl;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
+import org.glassfish.jersey.client.JerseyClient;
+import org.glassfish.jersey.client.oauth1.ConsumerCredentials;
+import org.glassfish.jersey.client.oauth1.OAuth1ClientSupport;
 
 import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.core.Feature;
 
 public class ExportServiceModule extends AbstractModule {
 
     @Override
     protected void configure() {
+    }
+
+    @Provides
+    @Singleton
+    @Named("mailPlus")
+    public JerseyClient jerseyClient(ClientBuilder clientBuilder, ExportServiceConfiguration config) {
+        JerseyClient client = (JerseyClient) clientBuilder.build();
+        client.property(ClientProperties.CONNECT_TIMEOUT, config.getMailPlus().getTimeout());
+        client.property(ClientProperties.READ_TIMEOUT, config.getMailPlus().getTimeout());
+
+        ConsumerCredentials credentials = new ConsumerCredentials(config.getMailPlus().getConsumerKey(),
+                config.getMailPlus().getConsumerSecret());
+
+        Feature feature = OAuth1ClientSupport.builder(credentials).signatureMethod("HMAC-SHA1").feature().build();
+        client.register(feature);
+        return client;
     }
 
     @Provides
