@@ -3,6 +3,7 @@ package com.spotler.core.apiclients.config;
 public class MailPlusConfiguration {
     private String consumerKey;
     private String consumerSecret;
+    private Integer maxParallelMTypeRuns;
     private int timeout;
 
     public String getConsumerKey() {
@@ -19,6 +20,14 @@ public class MailPlusConfiguration {
 
     public void setConsumerSecret(String consumerSecret) {
         this.consumerSecret = consumerSecret;
+    }
+
+    public Integer getMaxParallelMTypeRuns() {
+        return maxParallelMTypeRuns;
+    }
+
+    public void setMaxParallelMTypeRuns(Integer maxParallelMTypeRuns) {
+        this.maxParallelMTypeRuns = maxParallelMTypeRuns;
     }
 
     public int getTimeout() {

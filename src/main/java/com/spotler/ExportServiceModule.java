@@ -1,5 +1,6 @@
 package com.spotler;
 
+import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -11,11 +12,15 @@ import com.google.inject.Provides;
 import com.spotler.core.exporter.SFTPExporter;
 import com.spotler.service.SessionService;
 import com.spotler.service.impl.SessionServiceImpl;
+import io.dropwizard.db.ManagedDataSource;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.JerseyClient;
 import org.glassfish.jersey.client.oauth1.ConsumerCredentials;
 import org.glassfish.jersey.client.oauth1.OAuth1ClientSupport;
+import org.jooq.DSLContext;
+import org.jooq.SQLDialect;
+import org.jooq.impl.DSL;
 
 import javax.inject.Named;
 import javax.inject.Singleton;
@@ -26,6 +31,17 @@ public class ExportServiceModule extends AbstractModule {
 
     @Override
     protected void configure() {
+    }
+
+    @Provides
+    @Singleton
+    public ManagedDataSource mysqlConnection(ExportServiceConfiguration config, MetricRegistry metricRegistry) {
+        return config.getDatabase().build(metricRegistry, "MysqlConnection");
+    }
+
+    @Provides
+    public DSLContext dslContext(ManagedDataSource managedDataSource) {
+        return DSL.using(managedDataSource, SQLDialect.MARIADB);
     }
 
     @Provides

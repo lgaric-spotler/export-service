@@ -3,12 +3,12 @@ package com.spotler.model.datalake;
 import java.time.LocalDate;
 
 public class Usage {
+    private String id;
     private LocalDate date;
     private Integer accountId;
-    private String id;
     private String name;
     private String type;
-    private Integer sendCount;
+    private Integer sentCount;
 
     public LocalDate getDate() {
         return date;
@@ -50,11 +50,11 @@ public class Usage {
         this.type = type;
     }
 
-    public Integer getSendCount() {
-        return sendCount;
+    public Integer getSentCount() {
+        return sentCount;
     }
 
-    public void setSendCount(Integer sendCount) {
-        this.sendCount = sendCount;
+    public void setSentCount(Integer sentCount) {
+        this.sentCount = sentCount;
     }
 }

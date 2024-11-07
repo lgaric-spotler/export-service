@@ -4,11 +4,13 @@ import com.google.inject.Injector;
 import com.spotler.core.business.ExportManager;
 import com.spotler.resources.AdminResource;
 import io.dropwizard.Application;
+import io.dropwizard.db.PooledDataSourceFactory;
+import io.dropwizard.migrations.MigrationsBundle;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import ru.vyarus.dropwizard.guice.GuiceBundle;
 
-public class ExportServiceApplication extends Application<ExportServiceConfiguration> {
+public class ExportServiceApplication<T extends ExportServiceConfiguration> extends Application<ExportServiceConfiguration> {
 
     private GuiceBundle guiceBundle;
 
@@ -23,7 +25,14 @@ public class ExportServiceApplication extends Application<ExportServiceConfigura
 
     @Override
     public void initialize(final Bootstrap<ExportServiceConfiguration> bootstrap) {
-        this.guiceBundle = GuiceBundle.builder().modules(new ExportServiceModule()).build();
+        MigrationsBundle<T> migrationsBundle = new MigrationsBundle<>() {
+            @Override
+            public PooledDataSourceFactory getDataSourceFactory(T t) {
+                return t.getDatabase();
+            }
+        };
+
+        this.guiceBundle = GuiceBundle.builder().modules(new ExportServiceModule()).dropwizardBundles(migrationsBundle).build();
         bootstrap.addBundle(guiceBundle);
     }
 

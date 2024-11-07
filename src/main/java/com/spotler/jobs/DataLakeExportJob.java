@@ -46,6 +46,7 @@ public class DataLakeExportJob extends Job {
         try {
             LOGGER.info("DataLakeExport START!");
 
+            // TODO Check for memory optimization
             List<Environment> environmentData = RetryUtil.retry("GetEnvironmentData", dataLakeService::getEnvironmentData, maxRetries);
             RetryUtil.retry("ExportEnvironmentData", () -> exportEnvironmentData(environmentData), maxRetries);
 

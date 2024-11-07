@@ -42,6 +42,7 @@ public class ExportManager {
                     .build()
                     .schedule(dataLakeExportJob, 0, TimeUnit.SECONDS);
         } else {
+            // TODO What happens if job starts while it is already running?
             long delay = Duration.between(
                     LocalDateTime.now(),
                     LocalDateTime.of(LocalDateTime.now().toLocalDate().plusDays(1), LocalTime.MIDNIGHT)

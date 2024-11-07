@@ -1,32 +1,43 @@
 package com.spotler.core.business.service;
 
 import com.google.inject.Inject;
-import com.spotler.api.mailing.Mailing;
+import com.spotler.ExportServiceConfiguration;
 import com.spotler.core.apiclients.AMSClient;
 import com.spotler.core.apiclients.MailPlusClient;
 import com.spotler.core.model.account.Account;
 import com.spotler.model.datalake.Environment;
 import com.spotler.model.datalake.Usage;
 import com.spotler.model.datalake.User;
+import com.spotler.model.mailplus.Mailing;
 import com.spotler.util.ProgressLoggerUtil;
-import com.spotler.util.RetryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 public class DataLakeService {
     private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
 
     private final AMSClient amsClient;
     private final MailPlusClient mailPlusClient;
+    private final int maxParallelMTypeRuns;
 
     @Inject
-    public DataLakeService(AMSClient amsClient, MailPlusClient mailPlusClient) {
+    public DataLakeService(AMSClient amsClient, MailPlusClient mailPlusClient, ExportServiceConfiguration exportServiceConfiguration) {
         this.amsClient = amsClient;
         this.mailPlusClient = mailPlusClient;
+
+        Integer maxParallelMTypeRuns = exportServiceConfiguration.getMailPlus().getMaxParallelMTypeRuns();
+        this.maxParallelMTypeRuns = maxParallelMTypeRuns != null ? maxParallelMTypeRuns : 1;
     }
 
     public List<Environment> getEnvironmentData() {
@@ -86,20 +97,67 @@ public class DataLakeService {
 
     public List<Usage> getUsageData() {
         LOGGER.info("Getting usage data...");
-        // mTypes run in parallel?
         List<Account> accounts = amsClient.getAllAccounts();
+        Map<String, List<Account>> accountsByServer = accounts.stream().collect(Collectors.groupingBy(Account::getServer));
 
-        LocalDateTime startDate = LocalDateTime.now().minusDays(30);
+        // See if we can get all usage data from the rest api
 
-        for (Account account : accounts) {
-            List<Mailing> mailings = mailPlusClient.getMailings(account, startDate, LocalDateTime.now());
+        ExecutorService executorService = Executors.newFixedThreadPool(maxParallelMTypeRuns);
+        List<Future<List<Usage>>> futures = new ArrayList<>();
+        LocalDateTime startDate = LocalDateTime.of(LocalDateTime.now().toLocalDate().minusDays(30), LocalTime.MIDNIGHT);
+
+        for (List<Account> serverAccounts : accountsByServer.values()) {
+            futures.add(executorService.submit(() -> {
+                List<Usage> usage = new ArrayList<>();
+                int totalAccounts = serverAccounts.size();
+                int lastLoggedProgress = 0;
+                String server = serverAccounts.get(0).getServer();
+
+                for (int i = 0; i < serverAccounts.size(); i++) {
+                    Account account = serverAccounts.get(i);
+                    List<Usage> accountUsage = mailPlusClient.getMailingStats(account, startDate, LocalDateTime.now()).stream().map(this::mapToUsage).collect(Collectors.toList());
+                    accountUsage.forEach(u -> u.setAccountId(account.getId()));
+                    usage.addAll(accountUsage);
+
+                    lastLoggedProgress = ProgressLoggerUtil.logProgress(String.format("%s-GetUserData", server), i, totalAccounts, lastLoggedProgress);
+                }
+                return usage;
+            }));
         }
 
-        List<Usage> usageData = new ArrayList<>();
-        for (Usage usage : usageData) {
-
+        List<Usage> allMailingUsages = new ArrayList<>();
+        for (Future<List<Usage>> future : futures) {
+            try {
+                allMailingUsages.addAll(future.get());
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.error("Error processing mailings", e);
+                Thread.currentThread().interrupt();
+            }
         }
 
-        return usageData;
+        LOGGER.info("Enriching automation and campaign data...");
+        for (Usage usage : allMailingUsages) {
+            if (usage.getType().contains("arp")) {
+                // TODO enrich campaigns
+            } else if (usage.getType().contains("automation")) {
+                // TODO enrich automations
+            }
+
+            usage.setType(usage.getType().contains("sms") ? "SMS" : "Email");
+        }
+
+        executorService.shutdown();
+
+        return allMailingUsages;
+    }
+
+    private Usage mapToUsage(Mailing mailing) {
+        Usage usage = new Usage();
+        usage.setId(mailing.getEncryptedId());
+        //usage.setDate(mailing.getScheduledStartDate());
+        usage.setName(mailing.getName());
+        usage.setType(mailing.getType());
+        usage.setSentCount(mailing.getSentCount());
+        return usage;
     }
 }
